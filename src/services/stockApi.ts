@@ -1,6 +1,5 @@
-// Browser-compatible stock API service using Alpha Vantage free tier
-const ALPHA_VANTAGE_API_KEY = 'demo'; // Free demo key - works for popular stocks
-const BASE_URL = 'https://www.alphavantage.co/query';
+// Browser-compatible stock API service using Yahoo Finance
+const YAHOO_FINANCE_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 export interface StockQuote {
   symbol: string;
@@ -16,15 +15,45 @@ export interface StockQuote {
 
 export const getStockData = async (symbol: string): Promise<StockQuote> => {
   try {
-    // For demo purposes, we'll use mock data for most stocks
-    // and Alpha Vantage for popular ones
-    const popularStocks = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
+    // Use Yahoo Finance for all tickers
+    const response = await fetch(
+      `${YAHOO_FINANCE_BASE_URL}/${symbol.toUpperCase()}?interval=1d&range=1d&includePrePost=true`,
+      {
+        headers: {
+          'Accept': 'application/json',
+        }
+      }
+    );
     
-    if (popularStocks.includes(symbol.toUpperCase())) {
-      // Try Alpha Vantage for popular stocks
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data for ${symbol}`);
+    }
+    
+    const data = await response.json();
+    const result = data.chart?.result?.[0];
+    
+    if (!result || !result.meta) {
+      throw new Error(`No data available for ${symbol}`);
+    }
+    
+    const meta = result.meta;
+    const currentPrice = meta.regularMarketPrice || meta.previousClose;
+    const previousClose = meta.previousClose;
+    const change = currentPrice - previousClose;
+    const changePercent = (change / previousClose) * 100;
+    const volume = meta.regularMarketVolume || 0;
+    
+    // Get additional data from Yahoo Finance quote API
+    let marketCap = meta.marketCap;
+    let floatShares = meta.floatShares;
+    let avgVolume = meta.averageDailyVolume10Day;
+    let companyName = meta.longName || meta.shortName;
+    
+    // If some data is missing, try the quote endpoint
+    if (!marketCap || !floatShares || !avgVolume) {
       try {
-        const response = await fetch(
-          `${BASE_URL}?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`,
+        const quoteResponse = await fetch(
+          `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol.toUpperCase()}?modules=defaultKeyStatistics,price`,
           {
             headers: {
               'Accept': 'application/json',
@@ -32,36 +61,37 @@ export const getStockData = async (symbol: string): Promise<StockQuote> => {
           }
         );
         
-        if (response.ok) {
-          const data = await response.json();
-          const quote = data['Global Quote'];
+        if (quoteResponse.ok) {
+          const quoteData = await quoteResponse.json();
+          const keyStats = quoteData.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+          const priceData = quoteData.quoteSummary?.result?.[0]?.price;
           
-          if (quote && quote['05. price']) {
-            const currentPrice = parseFloat(quote['05. price']);
-            const change = parseFloat(quote['09. change']);
-            const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
-            const volume = parseInt(quote['06. volume']);
-            
-            return {
-              symbol: symbol.toUpperCase(),
-              price: currentPrice,
-              change,
-              changePercent,
-              volume,
-              marketCap: generateRealisticMarketCap(symbol),
-              floatShares: generateRealisticFloat(symbol),
-              avgVolume: Math.floor(volume * (0.8 + Math.random() * 0.4)),
-              companyName: getCompanyName(symbol),
-            };
+          if (keyStats) {
+            marketCap = marketCap || keyStats.marketCap?.raw;
+            floatShares = floatShares || keyStats.floatShares?.raw;
+            avgVolume = avgVolume || keyStats.averageVolume?.raw;
+          }
+          
+          if (priceData) {
+            companyName = companyName || priceData.longName || priceData.shortName;
           }
         }
       } catch (error) {
-        console.warn('Alpha Vantage API failed, using mock data');
+        console.warn('Failed to fetch additional quote data:', error);
       }
     }
     
-    // Fallback to realistic mock data
-    return generateMockStockData(symbol);
+    return {
+      symbol: symbol.toUpperCase(),
+      price: parseFloat(currentPrice.toFixed(2)),
+      change: parseFloat(change.toFixed(2)),
+      changePercent: parseFloat(changePercent.toFixed(2)),
+      volume,
+      marketCap,
+      floatShares,
+      avgVolume,
+      companyName,
+    };
     
   } catch (error) {
     console.error('Error fetching stock data:', error);
@@ -69,64 +99,6 @@ export const getStockData = async (symbol: string): Promise<StockQuote> => {
   }
 };
 
-const generateMockStockData = (symbol: string): StockQuote => {
-  // Generate realistic stock data based on the symbol
-  const basePrice = 50 + Math.random() * 400; // $50-$450 range
-  const changePercent = (Math.random() - 0.5) * 10; // -5% to +5% change
-  const change = (basePrice * changePercent) / 100;
-  const volume = Math.floor(1000000 + Math.random() * 50000000); // 1M-51M volume
-  
-  return {
-    symbol: symbol.toUpperCase(),
-    price: parseFloat(basePrice.toFixed(2)),
-    change: parseFloat(change.toFixed(2)),
-    changePercent: parseFloat(changePercent.toFixed(2)),
-    volume,
-    marketCap: generateRealisticMarketCap(symbol),
-    floatShares: generateRealisticFloat(symbol),
-    avgVolume: Math.floor(volume * (0.7 + Math.random() * 0.6)),
-    companyName: getCompanyName(symbol),
-  };
-};
-
-const generateRealisticMarketCap = (symbol: string): number => {
-  const largeCaps = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA'];
-  const midCaps = ['NFLX', 'AMD', 'CRM', 'ADBE', 'PYPL'];
-  
-  if (largeCaps.includes(symbol.toUpperCase())) {
-    return Math.floor(500000000000 + Math.random() * 2000000000000); // $500B-$2.5T
-  } else if (midCaps.includes(symbol.toUpperCase())) {
-    return Math.floor(50000000000 + Math.random() * 450000000000); // $50B-$500B
-  } else {
-    return Math.floor(1000000000 + Math.random() * 49000000000); // $1B-$50B
-  }
-};
-
-const generateRealisticFloat = (symbol: string): number => {
-  const marketCap = generateRealisticMarketCap(symbol);
-  const estimatedPrice = 50 + Math.random() * 400;
-  const totalShares = Math.floor(marketCap / estimatedPrice);
-  return Math.floor(totalShares * (0.6 + Math.random() * 0.3)); // 60-90% of total shares
-};
-
-const getCompanyName = (symbol: string): string => {
-  const companyNames: { [key: string]: string } = {
-    'AAPL': 'Apple Inc.',
-    'MSFT': 'Microsoft Corporation', 
-    'GOOGL': 'Alphabet Inc.',
-    'AMZN': 'Amazon.com Inc.',
-    'TSLA': 'Tesla Inc.',
-    'META': 'Meta Platforms Inc.',
-    'NVDA': 'NVIDIA Corporation',
-    'NFLX': 'Netflix Inc.',
-    'AMD': 'Advanced Micro Devices',
-    'CRM': 'Salesforce Inc.',
-    'ADBE': 'Adobe Inc.',
-    'PYPL': 'PayPal Holdings Inc.',
-  };
-  
-  return companyNames[symbol.toUpperCase()] || `${symbol.toUpperCase()} Corporation`;
-};
 
 export const getPopularStocks = () => {
   return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
