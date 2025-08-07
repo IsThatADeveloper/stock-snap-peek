@@ -92,17 +92,33 @@ const Index = () => {
         {/* Welcome Message when no data */}
         {!stockData && !isLoading && (
           <section className="text-center py-16">
-            <div className="max-w-md mx-auto">
+            <div className="max-w-md mx-auto mb-8">
               <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <TrendingUp className="h-12 w-12 text-primary" />
               </div>
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Ready to analyze stocks?
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-6">
                 Enter any stock ticker symbol above to get comprehensive market data, 
                 including real-time prices, volume analysis, and free float information.
               </p>
+            </div>
+            
+            {/* Popular Stocks */}
+            <div className="max-w-4xl mx-auto">
+              <h3 className="text-lg font-medium text-foreground mb-4">Try these popular stocks:</h3>
+              <div className="flex flex-wrap justify-center gap-3">
+                {getPopularStocks().map((ticker) => (
+                  <button
+                    key={ticker}
+                    onClick={() => handleSearch(ticker)}
+                    className="px-4 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-sm font-medium text-foreground transition-colors"
+                  >
+                    {ticker}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         )}
