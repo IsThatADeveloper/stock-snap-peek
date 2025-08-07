@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity, DollarSign } from "lucide-react";
+import { formatNumber } from "@/services/stockApi";
 
 interface StockData {
   symbol: string;
@@ -20,12 +21,6 @@ interface StockCardProps {
 
 export const StockCard = ({ data }: StockCardProps) => {
   const isPositive = data.change >= 0;
-  const formatNumber = (num: number) => {
-    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-    return num.toLocaleString();
-  };
 
   return (
     <Card className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">

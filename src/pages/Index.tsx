@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StockSearch } from "@/components/StockSearch";
 import { StockCard } from "@/components/StockCard";
-import { getStockData, StockQuote } from "@/services/yahooFinance";
+import { getStockData, StockQuote, getPopularStocks } from "@/services/stockApi";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, BarChart3, DollarSign } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
