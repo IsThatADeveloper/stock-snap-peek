@@ -1,4 +1,5 @@
-// Browser-compatible stock API service using Yahoo Finance
+// Browser-compatible stock API service using Yahoo Finance via CORS proxy
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 const YAHOO_FINANCE_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 export interface StockQuote {
@@ -16,8 +17,9 @@ export interface StockQuote {
 export const getStockData = async (symbol: string): Promise<StockQuote> => {
   try {
     // Use Yahoo Finance for all tickers
+    const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/${symbol.toUpperCase()}?interval=1d&range=1d&includePrePost=true`;
     const response = await fetch(
-      `${YAHOO_FINANCE_BASE_URL}/${symbol.toUpperCase()}?interval=1d&range=1d&includePrePost=true`,
+      `${CORS_PROXY}${encodeURIComponent(yahooUrl)}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -52,8 +54,9 @@ export const getStockData = async (symbol: string): Promise<StockQuote> => {
     // If some data is missing, try the quote endpoint
     if (!marketCap || !floatShares || !avgVolume) {
       try {
+        const quoteUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol.toUpperCase()}?modules=defaultKeyStatistics,price`;
         const quoteResponse = await fetch(
-          `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol.toUpperCase()}?modules=defaultKeyStatistics,price`,
+          `${CORS_PROXY}${encodeURIComponent(quoteUrl)}`,
           {
             headers: {
               'Accept': 'application/json',
